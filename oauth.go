@@ -7,6 +7,7 @@ import (
     "encoding/base64"
     "fmt"
     "http"
+    "log"
     "os"
     "rand"
     "sort"
@@ -30,74 +31,120 @@ const (
     TokenReq
 )
 
-var (
+type OAuth struct {
     ConsumerKey string
     ConsumerSecret string
     SignatureMethod int
-)
+
+    Callback string
+
+    RequestTokenURL string
+    OwnerAuthURL string
+    AccessTokenURL string
+
+    requestToken string
+    requestSecret string
+
+    verifier string
+
+    userName string
+    userId int
+    accessToken string
+    accessSecret string
+}
 
 // Signature method representations for oauth_signature.
 var signatureMethods = map[int]string{
     HMAC_SHA1: "HMAC-SHA1",
 }
 
-// The map used to store endpoints.
-var url = make(map[int]string)
+func (o *OAuth) GetTempCredentials() (err os.Error) {
+    params := o.params()
+    params["oauth_callback"] = o.Callback
+    escapeParams(params)
 
-// Sets the given endpoint URL.
-func SetURL(requestType int, endpoint string) {
-    switch(requestType) {
-    case TempCredentialReq, OwnerAuthorization, TokenReq:
-        url[requestType] = endpoint
+    signature := o.sign(baseString("POST", o.RequestTokenURL, params))
+
+    params["oauth_signature"] = PercentEncode(signature)
+
+    resp, err := post(o.RequestTokenURL, params)
+    if err != nil {
+        return
     }
+    err = o.parseResponse(resp, TempCredentialReq)
+    return
 }
 
-func MakeRequest(requestType int, params map[string]string) {
-    addRequiredParams(params)
-    escapeParams(params)
+func (o *OAuth) AuthorizationURL() (string, os.Error) {
+    if o.requestToken == "" || o.requestSecret == "" {
+        return "", &DanceError{
+            What: "attempt to get authorization without credentials",
+            Where: "OAuth:AuthorizationURL()",
+        }
+    }
+
+    url := o.OwnerAuthURL + "?oauth_token=" + o.requestToken
+    return url, nil
+}
+
+func (o *OAuth) parseResponse(resp *http.Response, requestType int) os.Error {
+    dump, _ := http.DumpResponse(resp, true)
+    fmt.Fprintf(os.Stderr, "%s\n", dump)
+    buf := new(bytes.Buffer)
+    buf.ReadFrom(resp.Body)
+    r := buf.String()
+    resp.Body.Close()
+
+    if resp.StatusCode == 401 {
+        return &DanceError{
+            What: r,
+            Where: fmt.Sprintf("parseResponse(requestType=%d)", requestType),
+        }
+    }
+
+    parts := strings.Split(r, "&", -1)
+    params := make(map[string]string)
+    for _, part := range parts {
+        kv := strings.Split(part, "=", 2)
+        params[kv[0]] = kv[1]
+    }
+
     switch(requestType) {
     case TempCredentialReq:
-        rstring := requestString("POST", url[requestType], params)
-
-        key := signingKey(ConsumerSecret, "")
-        sig := signature(key, rstring)
-        params["oauth_signature"] = PercentEncode(sig)
-
-        r, err := post(url[requestType], params)
-        if err != nil {
-            fmt.Fprintln(os.Stderr, err)
+        o.requestToken = params["oauth_token"]
+        o.requestSecret = params["oauth_token_secret"]
+        if confirmed, ok := params["oauth_calback_confirmed"]; !ok ||
+            confirmed != "true" {
+            return &CallbackError{o.Callback}
         }
-        resp, _ := http.DumpResponse(r, true)
-        fmt.Fprintf(os.Stderr, "%s\n\n", resp)
-
-        buf := new(bytes.Buffer)
-        buf.ReadFrom(r.Body)
-
-        response := buf.String()
-
-        parsedResponse := make(map[string]string)
-        pieces := strings.Split(response, "&", 3)
-        for _, p := range pieces {
-            kv := strings.Split(p, "=", 2)
-            parsedResponse[kv[0]] = kv[1]
+    case TokenReq:
+        o.accessToken = params["oauth_token"]
+        o.accessSecret = params["oauth_token_secret"]
+    default:
+        return &ImplementationError{
+            What: "requestType=" + strconv.Itoa(requestType),
+            Where: "OAuth:parseResponse()",
         }
-
-        if v, ok := parsedResponse["oauth_callback_confirmed"]; !ok || v != "true" {
-            fmt.Fprintln(os.Stderr, "Callback not confirmed!")
-            return
-        }
-
-        fmt.Printf("Please visit the following URL:\n%s?oauth_token=%s\n",
-            url[OwnerAuthorization], parsedResponse["oauth_token"])
     }
+    return nil
 }
 
-func addRequiredParams(given map[string]string) {
-    given["oauth_consumer_key"] = ConsumerKey
-    given["oauth_signature_method"] = signatureMethods[SignatureMethod]
+func (o *OAuth) addRequiredParams(given map[string]string) {
+    given["oauth_consumer_key"] = o.ConsumerKey
+    given["oauth_signature_method"] = signatureMethods[o.SignatureMethod]
     given["oauth_timestamp"] = timestamp()
     given["oauth_nonce"] = nonce()
     given["oauth_version"] = OAUTH_VERSION
+}
+
+func (o *OAuth) params() (p map[string]string) {
+    p = make(map[string]string)
+    p["oauth_consumer_key"] = o.ConsumerKey
+    p["oauth_signature_method"] = signatureMethods[o.SignatureMethod]
+    p["oauth_timestamp"] = timestamp()
+    p["oauth_nonce"] = nonce()
+    p["oauth_version"] = OAUTH_VERSION
+    return
 }
 
 // This doesn't escape the keys as the spec requires,
@@ -108,7 +155,7 @@ func escapeParams(p map[string]string) {
     }
 }
 
-func requestString(method, url string, queryParams map[string]string) string {
+func baseString(method, url string, queryParams map[string]string) string {
     str := method + "&"
     str += PercentEncode(url)
 
@@ -143,9 +190,20 @@ func signingKey(consumerSecret, oauthTokenSecret string) string {
     return consumerSecret + "&" + oauthTokenSecret
 }
 
+func (o *OAuth) signingKey() string {
+    key := o.ConsumerSecret + "&"
+    if o.accessSecret != "" {
+        key += o.accessSecret
+    } else if o.requestSecret != "" {
+        key += o.requestSecret
+    }
+    return key
+}
+
 // base64 bits inspired by github.com/montsamu/go-twitter-oauth
-func signature(key, request string) string {
-    switch (SignatureMethod) {
+func (o *OAuth) sign(request string) string {
+    key := o.signingKey()
+    switch (o.SignatureMethod) {
     case HMAC_SHA1:
         hash := hmac.NewSHA1([]byte(key))
         hash.Write([]byte(request))
@@ -154,7 +212,7 @@ func signature(key, request string) string {
         base64.StdEncoding.Encode(digest, signature)
         return strings.TrimSpace(bytes.NewBuffer(digest).String())
     }
-    fmt.Fprintln(os.Stderr, "Unknown signature method requested.")
+    log.Stderr("Unknown signature method requested.")
     return ""
 }
 
