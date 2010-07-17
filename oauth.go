@@ -7,7 +7,6 @@ import (
     "encoding/base64"
     "fmt"
     "http"
-    "log"
     "os"
     "rand"
     "sort"
@@ -58,12 +57,16 @@ var signatureMethods = map[int]string{
     HMAC_SHA1: "HMAC-SHA1",
 }
 
+// Initiates the OAuth dance.
 func (o *OAuth) GetTempCredentials() (err os.Error) {
     params := o.params()
     params["oauth_callback"] = o.Callback
     escapeParams(params)
 
-    signature := o.sign(baseString("POST", o.RequestTokenURL, params))
+    signature, err := o.sign(baseString("POST", o.RequestTokenURL, params))
+    if err != nil {
+        return
+    }
 
     params["oauth_signature"] = PercentEncode(signature)
 
@@ -75,11 +78,13 @@ func (o *OAuth) GetTempCredentials() (err os.Error) {
     return
 }
 
+// The URL the user needs to visit to grant authorization.
+// Call after GetTempCredentials().
 func (o *OAuth) AuthorizationURL() (string, os.Error) {
     if o.requestToken == "" || o.requestSecret == "" {
         return "", &DanceError{
             What: "attempt to get authorization without credentials",
-            Where: "OAuth:AuthorizationURL()",
+            Where: "OAuth\xb7AuthorizationURL()",
         }
     }
 
@@ -113,7 +118,7 @@ func (o *OAuth) parseResponse(resp *http.Response, requestType int) os.Error {
     case TempCredentialReq:
         o.requestToken = params["oauth_token"]
         o.requestSecret = params["oauth_token_secret"]
-        if confirmed, ok := params["oauth_calback_confirmed"]; !ok ||
+        if confirmed, ok := params["oauth_callback_confirmed"]; !ok ||
             confirmed != "true" {
             return &CallbackError{o.Callback}
         }
@@ -123,7 +128,7 @@ func (o *OAuth) parseResponse(resp *http.Response, requestType int) os.Error {
     default:
         return &ImplementationError{
             What: "requestType=" + strconv.Itoa(requestType),
-            Where: "OAuth:parseResponse()",
+            Where: "OAuth\xb7parseResponse()",
         }
     }
     return nil
@@ -201,7 +206,7 @@ func (o *OAuth) signingKey() string {
 }
 
 // base64 bits inspired by github.com/montsamu/go-twitter-oauth
-func (o *OAuth) sign(request string) string {
+func (o *OAuth) sign(request string) (string, os.Error) {
     key := o.signingKey()
     switch (o.SignatureMethod) {
     case HMAC_SHA1:
@@ -210,10 +215,12 @@ func (o *OAuth) sign(request string) string {
         signature := bytes.TrimSpace(hash.Sum())
         digest := make([]byte, base64.StdEncoding.EncodedLen(len(signature)))
         base64.StdEncoding.Encode(digest, signature)
-        return strings.TrimSpace(bytes.NewBuffer(digest).String())
+        return strings.TrimSpace(bytes.NewBuffer(digest).String()), nil
     }
-    log.Stderr("Unknown signature method requested.")
-    return ""
+    return "", &ImplementationError{
+        What: fmt.Sprintf("Unknown signature method (%d)", o.SignatureMethod),
+        Where: "OAuth\xb7sign",
+    }
 }
 
 func timestamp() string {
