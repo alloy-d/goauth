@@ -2,7 +2,7 @@ package oauth
 
 import (
     "bufio"
-    "bytes"
+    //"bytes"
     //"crypto/tls"
     "net"
     "fmt"
@@ -72,19 +72,42 @@ func send(req *http.Request) (resp *http.Response, err os.Error) {
     return
 }
 
-func post(url string, oauthHeaders map[string]string, bodyType string, body io.Reader) (r *http.Response, err os.Error) {
-    buf := new(bytes.Buffer)
-    buf.ReadFrom(body)
-
+func post(url string, oauthHeaders map[string]string) (r *http.Response, err os.Error) {
     var req http.Request
     req.Method = "POST"
     req.ProtoMajor = 1
     req.ProtoMinor = 1
     req.Close = true
-    req.ContentLength = int64(buf.Len())
-    req.Body = nopCloser{buf}
     req.Header = map[string]string{
-        "Content-Type": bodyType,
+        "Authorization": "OAuth ",
+    }
+    req.TransferEncoding = []string{"chunked"}
+
+    first := true
+    for k, v := range oauthHeaders {
+        if first {
+            first = false
+        } else {
+            req.Header["Authorization"] += ",\n    "
+        }
+        req.Header["Authorization"] += k+"=\""+v+"\""
+    }
+
+    req.URL, err = http.ParseURL(url)
+    if err != nil {
+        return nil, err
+    }
+
+    return send(&req)
+}
+
+func get(url string, oauthHeaders map[string]string) (r *http.Response, err os.Error) {
+    var req http.Request
+    req.Method = "GET"
+    req.ProtoMajor = 1
+    req.ProtoMinor = 1
+    req.Close = true
+    req.Header = map[string]string{
         "Authorization": "OAuth ",
     }
     req.TransferEncoding = []string{"chunked"}

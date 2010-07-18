@@ -6,12 +6,14 @@ package oauth
 
 // This function lifted shamelessly from the http package and slightly
 // modified.
+//
+// TODO: should be rewritten to reflect OAuth spec.
 func shouldEscape(c byte) bool {
     if c <= ' ' || c >= 0x7F {
         return true
     }
     switch c {
-    case '<', '>', '#', '%', '"', // delims
+    case '<', '>', '#', '%', '"', '\'', // delims
         '{', '}', '|', '\\', '^', '[', ']', '`', // unwise
         ';', '/', '?', ':', '@', '&', '=', '+', '$', ',': // reserved
         return true

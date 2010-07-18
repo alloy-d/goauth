@@ -13,7 +13,6 @@ import (
     "rand"
     "sort"
     "strconv"
-    "strings"
     "time"
 )
 
@@ -54,6 +53,8 @@ type OAuth struct {
     accessSecret string
 }
 
+var none map[string]string
+
 // Signature method representations for oauth_signature.
 //
 // TODO: why does this exist, anyway?
@@ -77,10 +78,10 @@ func (o *OAuth) UserName() string {
 
 // Initiates the OAuth dance.
 func (o *OAuth) GetTempCredentials() (err os.Error) {
-    params := o.params()
-    params["oauth_callback"] = o.Callback
+    oParams := o.params()
+    oParams["oauth_callback"] = o.Callback
 
-    resp, err := o.makeRequest("POST", o.RequestTokenURL, params, "", "")
+    resp, err := o.makeRequest("POST", o.RequestTokenURL, oParams, none)
     if err != nil {
         return
     }
@@ -89,19 +90,23 @@ func (o *OAuth) GetTempCredentials() (err os.Error) {
 }
 
 // Makes an HTTP request, handling all the repetitive OAuth overhead.
-func (o *OAuth) makeRequest(method, url string, params map[string]string, bodyType string, body string) (resp *http.Response, err os.Error) {
+func (o *OAuth) makeRequest(method, url string, oParams map[string]string, params map[string]string) (resp *http.Response, err os.Error) {
+    escapeParams(oParams)
     escapeParams(params)
 
-    signature, err := o.sign(baseString(method, url, params, bodyType, body))
+    allParams := mergeParams(oParams, params)
+    signature, err := o.sign(baseString(method, url, allParams))
     if err != nil {
         return
     }
 
-    params["oauth_signature"] = PercentEncode(signature)
+    oParams["oauth_signature"] = PercentEncode(signature)
 
     switch(method) {
     case "POST":
-        resp, err = post(url, params, bodyType, strings.NewReader(body))
+        resp, err = post(addQueryParams(url, params), oParams)
+    case "GET":
+        resp, err = get(addQueryParams(url, params), oParams)
     default:
         return nil, &ImplementationError{
             What: fmt.Sprintf("HTTP method (%s)", method),
@@ -150,7 +155,7 @@ func (o *OAuth) GetAccessToken() (err os.Error) {
     params := o.params()
     params["oauth_token"] = o.requestToken
     params["oauth_verifier"] = o.verifier
-    resp, err := o.makeRequest("POST", o.AccessTokenURL, params, "", "")
+    resp, err := o.makeRequest("POST", o.AccessTokenURL, params, none)
     if err != nil {
         return
     }
@@ -216,23 +221,13 @@ func (o *OAuth) params() (p map[string]string) {
 // The base string used to compute signatures.
 //
 // TODO: handle parameters in the URL. 
-func baseString(method, url string, queryParams map[string]string, bodyType string, body string) string {
+func baseString(method, url string, params map[string]string) string {
     str := method + "&"
     str += PercentEncode(url)
 
-    var bodyParams, allParams map[string]string
-    if bodyType == "application/x-www-form-urlencoded" {
-        bodyParams = parseParams(body)
-        unescapeParams(bodyParams)  // Un-url-encode before...
-        escapeParams(bodyParams)    // ...re-percent-encoding!
-        allParams = mergeParams(queryParams, bodyParams)
-    } else {
-        allParams = queryParams
-    }
-
-    keys := make([]string, len(allParams))
+    keys := make([]string, len(params))
     i := 0
-    for k, _ := range allParams {
+    for k, _ := range params {
         keys[i] = k
         i++
     }
@@ -247,8 +242,8 @@ func baseString(method, url string, queryParams map[string]string, bodyType stri
             str += "%26"
         }
         str += PercentEncode(k) + "%3D"
-        str += PercentEncode(allParams[k])
-        fmt.Fprintf(os.Stderr, "bs -> %s=%s\n", k, allParams[k])
+        str += PercentEncode(params[k])
+        fmt.Fprintf(os.Stderr, "bs -> %s=%s\n", k, params[k])
     }
 
     log.Stderrf("\n---\nComputed base string:\n%s\n---\n", str)
@@ -299,6 +294,7 @@ func timestamp() string {
 // Issues an OAuth-wrapped POST to the specified URL.
 //
 // Caller should close r.Body when done reading it.
+/*
 func (o *OAuth) Post(url string, bodyType string, body io.Reader) (r *http.Response, err os.Error) {
     if !o.Authorized() {
         return nil, &DanceError{
@@ -308,11 +304,36 @@ func (o *OAuth) Post(url string, bodyType string, body io.Reader) (r *http.Respo
     }
 
     bs := bodyString(body)
-    fmt.Fprintln(os.Stderr, bs)
     params := o.params()
     r, err = o.makeRequest("POST", url, params, bodyType, bs)
     dump, _ := http.DumpResponse(r, true)
     fmt.Fprintf(os.Stderr, "%s\n", dump)
     return
 }
+*/
 
+func (o *OAuth) Post(url string, params map[string]string) (r *http.Response, err os.Error) {
+    if !o.Authorized() {
+        return nil, &DanceError{
+            What: "Not authorized",
+            Where: "OAuth\xb7PostParams()",
+        }
+    }
+
+    oParams := o.params()
+    r, err = o.makeRequest("POST", url, oParams, params)
+    return
+}
+
+func (o *OAuth) Get(url string, params map[string]string) (r *http.Response, err os.Error) {
+    if !o.Authorized() {
+        return nil, &DanceError{
+            What: "Not authorized",
+            Where: "OAuth\xb7PostParams()",
+        }
+    }
+
+    oParams := o.params()
+    r, err = o.makeRequest("GET", url, oParams, params)
+    return
+}

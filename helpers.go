@@ -7,6 +7,28 @@ import (
     "strings"
 )
 
+func addQueryParams(url string, params map[string]string) string {
+    str := url
+
+    first := true
+    for k, v := range params {
+        if first {
+            str += "?"
+            first = false
+        } else {
+            str += "&"
+        }
+
+        rawv, err := http.URLUnescape(v)
+        if err == nil {
+            v = rawv
+        }
+        str += k + "=" + http.URLEscape(v)
+    }
+
+    return str
+}
+
 // An annoying enough task that it gets its own function.
 func bodyString(body io.Reader) string {
     buf := new(bytes.Buffer)
