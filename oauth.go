@@ -10,7 +10,6 @@ import (
     "fmt"
     "http"
     "io"
-    "log"
     "os"
     "rand"
     "sort"
@@ -18,7 +17,7 @@ import (
     "time"
 )
 
-// Supported oauth version:
+// Supported oauth version (currently the only legal value):
 const OAUTH_VERSION = "1.0"
 
 // Supported signature methods:
@@ -72,6 +71,7 @@ func (o *OAuth) Authorized() bool {
 }
 
 // Returns the username, if any.
+//
 // Does not return any dance errors, because that would just be
 // obnoxious.
 func (o *OAuth) UserName() string {
@@ -183,18 +183,14 @@ func (o *OAuth) parseResponse(status int, body io.Reader, requestType int) os.Er
 
     switch(requestType) {
     case TempCredentialReq:
-        log.Stdoutf("Recv'd request token '%s'.\n", params["oauth_token"])
         o.requestToken = params["oauth_token"]
-        log.Stdoutf("Recv'd request secret '%s'.\n", params["oauth_token_secret"])
         o.requestSecret = params["oauth_token_secret"]
         if confirmed, ok := params["oauth_callback_confirmed"]; !ok ||
             confirmed != "true" {
             return &CallbackError{o.Callback}
         }
     case TokenReq:
-        log.Stdoutf("Recv'd access token '%s'.\n", params["oauth_token"])
         o.accessToken = params["oauth_token"]
-        log.Stdoutf("Recv'd access secret '%s'.\n", params["oauth_token_secret"])
         o.accessSecret = params["oauth_token_secret"]
         o.userId, _ = strconv.Atoui(params["user_id"])
         o.userName = params["screen_name"]
@@ -222,7 +218,7 @@ func (o *OAuth) params() (p map[string]string) {
 
 // The base string used to compute signatures.
 //
-// TODO: handle parameters in the URL. 
+// Pass in all parameters, (query params, oauth params, post body).
 func baseString(method, url string, params map[string]string) string {
     str := method + "&"
     str += PercentEncode(url)
@@ -247,12 +243,10 @@ func baseString(method, url string, params map[string]string) string {
         str += PercentEncode(params[k])
         fmt.Fprintf(os.Stderr, "bs -> %s=%s\n", k, params[k])
     }
-
-    log.Stderrf("\n---\nComputed base string:\n%s\n---\n", str)
     return str
 }
 
-// For oauth_nonce.
+// For oauth_nonce (if that wasn't obvious).
 func nonce() string {
     return strconv.Itoa64(rand.Int63())
 }
@@ -265,11 +259,9 @@ func (o *OAuth) signingKey() string {
     } else if o.requestSecret != "" {
         key += o.requestSecret
     }
-    log.Stderrf("Using key: %s\n", key)
     return key
 }
 
-// base64 bits inspired by github.com/montsamu/go-twitter-oauth
 func (o *OAuth) sign(request string) (string, os.Error) {
     key := o.signingKey()
     switch (o.SignatureMethod) {
@@ -279,8 +271,6 @@ func (o *OAuth) sign(request string) (string, os.Error) {
         signature := hash.Sum()
         digest := make([]byte, base64.StdEncoding.EncodedLen(len(signature)))
         base64.StdEncoding.Encode(digest, signature)
-        //return bytes.NewBuffer(digest).String(), nil
-        log.Stderrf("Generated signature %s\n", digest)
         return string(digest), nil
     }
     return "", &ImplementationError{
@@ -292,27 +282,6 @@ func (o *OAuth) sign(request string) (string, os.Error) {
 func timestamp() string {
     return strconv.Itoa64(time.Seconds())
 }
-
-// Issues an OAuth-wrapped POST to the specified URL.
-//
-// Caller should close r.Body when done reading it.
-/*
-func (o *OAuth) Post(url string, bodyType string, body io.Reader) (r *http.Response, err os.Error) {
-    if !o.Authorized() {
-        return nil, &DanceError{
-            What: "Not authorized",
-            Where: "OAuth\xb7Post()",
-        }
-    }
-
-    bs := bodyString(body)
-    params := o.params()
-    r, err = o.makeRequest("POST", url, params, bodyType, bs)
-    dump, _ := http.DumpResponse(r, true)
-    fmt.Fprintf(os.Stderr, "%s\n", dump)
-    return
-}
-*/
 
 func (o *OAuth) Post(url string, params map[string]string) (r *http.Response, err os.Error) {
     if !o.Authorized() {
