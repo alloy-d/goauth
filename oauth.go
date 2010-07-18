@@ -124,7 +124,7 @@ func (o *OAuth) AuthorizationURL() (string, os.Error) {
 
 // Performs the final step in the dance: getting the access token.
 //
-// Call this after GetTempCredentials() and setting the verifier.
+// Call this after GetTempCredentials() and getting user verification.
 func (o *OAuth) GetAccessToken(verifier string) (err os.Error) {
     if o.requestToken == "" || o.requestSecret == "" {
         return &DanceError{
