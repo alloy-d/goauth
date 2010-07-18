@@ -4,7 +4,6 @@
 package oauth
 
 import (
-    //"bytes"
     "crypto/hmac"
     "encoding/base64"
     "fmt"
@@ -22,7 +21,7 @@ const OAUTH_VERSION = "1.0"
 
 // Supported signature methods:
 const (
-    HMAC_SHA1 = iota
+    HMAC_SHA1 = "HMAC-SHA1"
 )
 
 // Request types:
@@ -35,7 +34,7 @@ const (
 type OAuth struct {
     ConsumerKey string
     ConsumerSecret string
-    SignatureMethod uint
+    SignatureMethod string
 
     Callback string
 
@@ -46,8 +45,6 @@ type OAuth struct {
     requestToken string
     requestSecret string
 
-    verifier string
-
     userName string
     userId uint
     accessToken string
@@ -55,13 +52,6 @@ type OAuth struct {
 }
 
 var none map[string]string
-
-// Signature method representations for oauth_signature.
-//
-// TODO: why does this exist, anyway?
-var signatureMethods = map[uint]string{
-    HMAC_SHA1: "HMAC-SHA1",
-}
 
 func (o *OAuth) Authorized() bool {
     if o.accessToken != "" && o.accessSecret != "" {
@@ -132,31 +122,20 @@ func (o *OAuth) AuthorizationURL() (string, os.Error) {
     return url, nil
 }
 
-// Sets the OAuth verifier if gotten out-of-band.
-// (For Twitter, you would pass the user's "PIN" to this.)
-func (o *OAuth) OOBVerifier(v string) {
-    o.verifier = v
-}
-
 // Performs the final step in the dance: getting the access token.
 //
 // Call this after GetTempCredentials() and setting the verifier.
-func (o *OAuth) GetAccessToken() (err os.Error) {
+func (o *OAuth) GetAccessToken(verifier string) (err os.Error) {
     if o.requestToken == "" || o.requestSecret == "" {
         return &DanceError{
             What: "Temporary credentials not avaiable",
-            Where: "OAuth\xb7GetAccessToken()",
-        }
-    } else if o.verifier == "" {
-        return &DanceError{
-            What: "Verifier not available",
             Where: "OAuth\xb7GetAccessToken()",
         }
     }
 
     params := o.params()
     params["oauth_token"] = o.requestToken
-    params["oauth_verifier"] = o.verifier
+    params["oauth_verifier"] = verifier
     resp, err := o.makeRequest("POST", o.AccessTokenURL, params, none)
     if err != nil {
         return
@@ -206,7 +185,7 @@ func (o *OAuth) parseResponse(status int, body io.Reader, requestType int) os.Er
 func (o *OAuth) params() (p map[string]string) {
     p = make(map[string]string)
     p["oauth_consumer_key"] = o.ConsumerKey
-    p["oauth_signature_method"] = signatureMethods[o.SignatureMethod]
+    p["oauth_signature_method"] = o.SignatureMethod
     p["oauth_timestamp"] = timestamp()
     p["oauth_nonce"] = nonce()
     p["oauth_version"] = OAUTH_VERSION
