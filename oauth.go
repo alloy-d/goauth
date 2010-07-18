@@ -102,7 +102,7 @@ func (o *OAuth) makeRequest(method, url string, oParams map[string]string, param
     case "GET":
         resp, err = get(addQueryParams(url, params), oParams)
     default:
-        return nil, &ImplementationError{
+        return nil, &implementationError{
             What: fmt.Sprintf("HTTP method (%s)", method),
             Where: "OAuth\xb7makeRequest()",
         }
@@ -114,7 +114,7 @@ func (o *OAuth) makeRequest(method, url string, oParams map[string]string, param
 // Call after GetTempCredentials().
 func (o *OAuth) AuthorizationURL() (string, os.Error) {
     if o.requestToken == "" || o.requestSecret == "" {
-        return "", &DanceError{
+        return "", &danceError{
             What: "attempt to get authorization without credentials",
             Where: "OAuth\xb7AuthorizationURL()",
         }
@@ -129,7 +129,7 @@ func (o *OAuth) AuthorizationURL() (string, os.Error) {
 // Call this after GetTempCredentials() and getting user verification.
 func (o *OAuth) GetAccessToken(verifier string) (err os.Error) {
     if o.requestToken == "" || o.requestSecret == "" {
-        return &DanceError{
+        return &danceError{
             What: "Temporary credentials not avaiable",
             Where: "OAuth\xb7GetAccessToken()",
         }
@@ -154,7 +154,7 @@ func (o *OAuth) parseResponse(status int, body io.Reader, requestType int) os.Er
     r := bodyString(body)
 
     if status == 401 {
-        return &DanceError{
+        return &danceError{
             What: r,
             Where: fmt.Sprintf("parseResponse(requestType=%d)", requestType),
         }
@@ -168,7 +168,7 @@ func (o *OAuth) parseResponse(status int, body io.Reader, requestType int) os.Er
         o.requestSecret = params["oauth_token_secret"]
         if confirmed, ok := params["oauth_callback_confirmed"]; !ok ||
             confirmed != "true" {
-            return &CallbackError{o.Callback}
+            return &callbackError{o.Callback}
         }
     case TokenReq:
         o.accessToken = params["oauth_token"]
@@ -176,7 +176,7 @@ func (o *OAuth) parseResponse(status int, body io.Reader, requestType int) os.Er
         o.userId, _ = strconv.Atoui(params["user_id"])
         o.userName = params["screen_name"]
     default:
-        return &ImplementationError{
+        return &implementationError{
             What: "requestType=" + strconv.Itoa(requestType),
             Where: "OAuth\xb7parseResponse()",
         }
@@ -254,7 +254,7 @@ func (o *OAuth) sign(request string) (string, os.Error) {
         base64.StdEncoding.Encode(digest, signature)
         return string(digest), nil
     }
-    return "", &ImplementationError{
+    return "", &implementationError{
         What: fmt.Sprintf("Unknown signature method (%d)", o.SignatureMethod),
         Where: "OAuth\xb7sign",
     }
@@ -266,7 +266,7 @@ func timestamp() string {
 
 func (o *OAuth) Post(url string, params map[string]string) (r *http.Response, err os.Error) {
     if !o.Authorized() {
-        return nil, &DanceError{
+        return nil, &danceError{
             What: "Not authorized",
             Where: "OAuth\xb7PostParams()",
         }
@@ -279,7 +279,7 @@ func (o *OAuth) Post(url string, params map[string]string) (r *http.Response, er
 
 func (o *OAuth) Get(url string, params map[string]string) (r *http.Response, err os.Error) {
     if !o.Authorized() {
-        return nil, &DanceError{
+        return nil, &danceError{
             What: "Not authorized",
             Where: "OAuth\xb7PostParams()",
         }
