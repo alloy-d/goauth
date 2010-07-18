@@ -3,7 +3,7 @@ package oauth
 import (
     "bufio"
     //"bytes"
-    //"crypto/tls"
+    "crypto/tls"
     "net"
     "fmt"
     "http"
@@ -39,21 +39,30 @@ func send(req *http.Request) (resp *http.Response, err os.Error) {
     //dump, _ := http.DumpRequest(req, true)
     //fmt.Fprintf(os.Stderr, "%s", dump)
     //fmt.Fprintf(os.Stderr, "\n--- body:\n%s\n---", bodyString(req.Body))
-    if req.URL.Scheme != "http" {
+    if req.URL.Scheme != "http" && req.URL.Scheme != "https" {
         return nil, &badStringError{"unsupported protocol scheme", req.URL.Scheme}
     }
 
     addr := req.URL.Host
-    if !hasPort(addr) {
-        addr += ":http"
-    }
+    var conn net.Conn
+    switch(req.URL.Scheme) {
+    case "http":
+        if !hasPort(addr) {
+            addr += ":http"
+        }
 
-    conn, err := net.Dial("tcp", "", addr)
+        conn, err = net.Dial("tcp", "", addr)
+    case "https":
+        if !hasPort(addr) {
+            addr += ":https"
+        }
+
+        conn, err = tls.Dial("tcp", "", addr)
+    }
     if err != nil {
         return nil, err
     }
 
-    err = req.Write(os.Stdout)
     err = req.Write(conn)
     if err != nil {
         conn.Close()

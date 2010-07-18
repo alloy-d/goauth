@@ -1,4 +1,6 @@
 // A Go OAuth library, mainly created to interact with Twitter.
+// 
+// Does header-based OAuth over HTTP or HTTPS.
 package oauth
 
 import (
