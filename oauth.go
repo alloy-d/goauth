@@ -51,7 +51,9 @@ type OAuth struct {
     accessSecret string
 }
 
-var none map[string]string
+// An empty map[string]string.
+// Caters to laziness when no params are given.
+var None map[string]string
 
 func (o *OAuth) Authorized() bool {
     if o.accessToken != "" && o.accessSecret != "" {
@@ -73,7 +75,7 @@ func (o *OAuth) GetTempCredentials() (err os.Error) {
     oParams := o.params()
     oParams["oauth_callback"] = o.Callback
 
-    resp, err := o.makeRequest("POST", o.RequestTokenURL, oParams, none)
+    resp, err := o.makeRequest("POST", o.RequestTokenURL, oParams, None)
     if err != nil {
         return
     }
@@ -136,7 +138,7 @@ func (o *OAuth) GetAccessToken(verifier string) (err os.Error) {
     params := o.params()
     params["oauth_token"] = o.requestToken
     params["oauth_verifier"] = verifier
-    resp, err := o.makeRequest("POST", o.AccessTokenURL, params, none)
+    resp, err := o.makeRequest("POST", o.AccessTokenURL, params, None)
     if err != nil {
         return
     }
