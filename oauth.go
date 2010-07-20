@@ -222,7 +222,6 @@ func baseString(method, url string, params map[string]string) string {
         }
         str += PercentEncode(k) + "%3D"
         str += PercentEncode(params[k])
-        fmt.Fprintf(os.Stderr, "bs -> %s=%s\n", k, params[k])
     }
     return str
 }
