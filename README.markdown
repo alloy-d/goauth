@@ -19,7 +19,7 @@
         o.OwnerAuthURL = "https://api.twitter.com/oauth/authorize"
         o.AccessTokenURL = "https://api.twitter.com/oauth/access_token"
         
-        err = o.GetTempCredentials()
+        err = o.GetRequestToken()
         if err != nil { return }
 
         url, err = o.AuthorizationURL()
