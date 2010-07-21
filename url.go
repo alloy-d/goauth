@@ -4,32 +4,19 @@
 
 package oauth
 
-// This function lifted shamelessly from the http package and slightly
-// modified.
-//
-// TODO: should be rewritten to reflect OAuth spec.
 func shouldEscape(c byte) bool {
-    if c <= ' ' || c >= 0x7F {
-        return true
+    switch {
+    case c >= 0x41 && c <= 0x5A: return false
+    case c >= 0x61 && c <= 0x7A: return false
+    case c >= 0x30 && c <= 0x39: return false
+    case c == '-', c == '.', c == '_', c == '~': return false
     }
-    switch c {
-    case '<', '>', '#', '%', '"', '\'', // delims
-        '{', '}', '|', '\\', '^', '[', ']', '`', // unwise
-        ';', '/', '?', ':', '@', '&', '=', '+', '$', ',': // reserved
-        return true
-    }
-    return false
+    return true
 }
 
-/*
-Performs percent-encoding as specified by RFC 5849.
-
-Similar to http.URLEscape, except that this also encodes *all* values
-listed as restricted in RFC 2396.  This also percent-encodes spaces,
-rather than replacing them with '+'.  Hex values are upper-case.
-
-Can be reversed with http.URLUnescape.
-*/
+//Performs percent-encoding as specified by RFC 5849.
+//
+//Can be reversed with http.URLUnescape.
 func PercentEncode(s string) string {
     spaceCount, hexCount := 0, 0
     for i := 0; i < len(s); i++ {
