@@ -62,10 +62,18 @@ func (o *OAuth) Authorized() bool {
     return false
 }
 
-// Returns the username, if any.
+// Returns the user id, if any.
 //
 // Does not return any dance errors, because that would just be
-// obnoxious.
+// obnoxious.  Check for authorization with Authorized().
+func (o *OAuth) UserID() uint {
+    return o.userId
+}
+
+// Returns the username, if any.
+//
+// Does not return any dance errors.  Check for authorization with
+// Authorized().
 func (o *OAuth) UserName() string {
     return o.userName
 }
