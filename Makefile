@@ -1,6 +1,6 @@
 include $(GOROOT)/src/Make.$(GOARCH)
 
-TARG=alloy-d/oauth
+TARG=alloy-d/goauth
 GOFILES=oauth.go\
 		http.go\
 		url.go\
