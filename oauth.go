@@ -79,7 +79,7 @@ func (o *OAuth) UserName() string {
 }
 
 // Initiates the OAuth dance.
-func (o *OAuth) GetTempCredentials() (err os.Error) {
+func (o *OAuth) GetRequestToken() (err os.Error) {
     oParams := o.params()
     oParams["oauth_callback"] = o.Callback
 
@@ -119,7 +119,7 @@ func (o *OAuth) makeRequest(method, url string, oParams map[string]string, param
 }
 
 // The URL the user needs to visit to grant authorization.
-// Call after GetTempCredentials().
+// Call after GetRequestToken().
 func (o *OAuth) AuthorizationURL() (string, os.Error) {
     if o.requestToken == "" || o.requestSecret == "" {
         return "", &danceError{
@@ -134,7 +134,7 @@ func (o *OAuth) AuthorizationURL() (string, os.Error) {
 
 // Performs the final step in the dance: getting the access token.
 //
-// Call this after GetTempCredentials() and getting user verification.
+// Call this after GetRequestToken() and getting user verification.
 func (o *OAuth) GetAccessToken(verifier string) (err os.Error) {
     if o.requestToken == "" || o.requestSecret == "" {
         return &danceError{
