@@ -18,17 +18,19 @@
         o.RequestTokenURL = "https://api.twitter.com/oauth/request_token"
         o.OwnerAuthURL = "https://api.twitter.com/oauth/authorize"
         o.AccessTokenURL = "https://api.twitter.com/oauth/access_token"
-        
+
         err = o.GetRequestToken()
         if err != nil { return }
 
-        url, err = o.AuthorizationURL()
+        url, err := o.AuthorizationURL()
         if err != nil { return }
 
         // somehow send user to url...
+
+        var verifier string
         // somehow get verifier (or "PIN")...
 
-        err = GetAccessToken(verifier)
+        err = o.GetAccessToken(verifier)
         if err != nil { return }
 
         err = o.Save(os.Getenv("HOME") + "/.simple_example.oauth")
