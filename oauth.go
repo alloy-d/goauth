@@ -42,6 +42,9 @@ type OAuth struct {
     OwnerAuthURL string
     AccessTokenURL string
 
+    // NOT initialized.
+    RequestTokenParams map[string]string
+
     requestToken string
     requestSecret string
 
@@ -83,7 +86,9 @@ func (o *OAuth) GetRequestToken() (err os.Error) {
     oParams := o.params()
     oParams["oauth_callback"] = o.Callback
 
-    resp, err := o.makeRequest("POST", o.RequestTokenURL, oParams, None)
+    allParams := mergeParams(oParams, o.RequestTokenParams)
+
+    resp, err := o.makeRequest("POST", o.RequestTokenURL, allParams, None)
     if err != nil {
         return
     }
