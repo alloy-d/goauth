@@ -51,13 +51,13 @@ func send(req *http.Request) (resp *http.Response, err os.Error) {
             addr += ":http"
         }
 
-        conn, err = net.Dial("tcp", "", addr)
+        conn, err = net.Dial("tcp", addr)
     case "https":
         if !hasPort(addr) {
             addr += ":https"
         }
 
-        conn, err = tls.Dial("tcp", "", addr)
+        conn, err = tls.Dial("tcp", addr, nil)
     }
     if err != nil {
         return nil, err
@@ -87,8 +87,8 @@ func post(url string, oauthHeaders map[string]string) (r *http.Response, err os.
     req.ProtoMajor = 1
     req.ProtoMinor = 1
     req.Close = true
-    req.Header = map[string]string{
-        "Authorization": "OAuth ",
+    req.Header = map[string][]string{
+        "Authorization": {"OAuth "},
     }
     req.TransferEncoding = []string{"chunked"}
 
@@ -97,9 +97,9 @@ func post(url string, oauthHeaders map[string]string) (r *http.Response, err os.
         if first {
             first = false
         } else {
-            req.Header["Authorization"] += ",\n    "
+            req.Header["Authorization"][0] += ",\n    "
         }
-        req.Header["Authorization"] += k+"=\""+v+"\""
+        req.Header["Authorization"][0] += k+"=\""+v+"\""
     }
 
     req.URL, err = http.ParseURL(url)
@@ -116,8 +116,8 @@ func get(url string, oauthHeaders map[string]string) (r *http.Response, err os.E
     req.ProtoMajor = 1
     req.ProtoMinor = 1
     req.Close = true
-    req.Header = map[string]string{
-        "Authorization": "OAuth ",
+    req.Header = map[string][]string{
+        "Authorization": {"OAuth "},
     }
     req.TransferEncoding = []string{"chunked"}
 
@@ -126,9 +126,9 @@ func get(url string, oauthHeaders map[string]string) (r *http.Response, err os.E
         if first {
             first = false
         } else {
-            req.Header["Authorization"] += ",\n    "
+            req.Header["Authorization"][0] += ",\n    "
         }
-        req.Header["Authorization"] += k+"=\""+v+"\""
+        req.Header["Authorization"][0] += k+"=\""+v+"\""
     }
 
     req.URL, err = http.ParseURL(url)
