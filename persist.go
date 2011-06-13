@@ -9,7 +9,7 @@ import (
 //
 // Format is the same as the return from the server.
 func (o *OAuth) Save(fileName string) (err os.Error) {
-    file, err := os.Open(fileName, os.O_WRONLY|os.O_TRUNC|os.O_CREATE, 0600)
+    file, err := os.OpenFile(fileName, os.O_WRONLY|os.O_TRUNC|os.O_CREATE, 0600)
     defer file.Close()
     if err != nil {
         return
@@ -28,7 +28,7 @@ func (o *OAuth) Save(fileName string) (err os.Error) {
 
 // Loads access token information from a file.
 func (o *OAuth) Load(fileName string) (err os.Error) {
-    file, err := os.Open(fileName, os.O_RDONLY, 0600)
+    file, err := os.Open(fileName)
     defer file.Close()
     if err != nil {
         return
