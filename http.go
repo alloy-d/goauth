@@ -10,6 +10,7 @@ import (
 	"io"
 	"os"
 	"strings"
+	"url"
 )
 
 type badStringError struct {
@@ -82,7 +83,7 @@ func send(req *http.Request) (resp *http.Response, err os.Error) {
 	return
 }
 
-func post(url string, oauthHeaders map[string]string) (r *http.Response, err os.Error) {
+func post(url_ string, oauthHeaders map[string]string) (r *http.Response, err os.Error) {
 	var req http.Request
 	req.Method = "POST"
 	req.ProtoMajor = 1
@@ -103,7 +104,7 @@ func post(url string, oauthHeaders map[string]string) (r *http.Response, err os.
 		req.Header["Authorization"][0] += k + "=\"" + v + "\""
 	}
 
-	req.URL, err = http.ParseURL(url)
+	req.URL, err = url.Parse(url_)
 	if err != nil {
 		return nil, err
 	}
@@ -111,7 +112,7 @@ func post(url string, oauthHeaders map[string]string) (r *http.Response, err os.
 	return send(&req)
 }
 
-func get(url string, oauthHeaders map[string]string) (r *http.Response, err os.Error) {
+func get(url_ string, oauthHeaders map[string]string) (r *http.Response, err os.Error) {
 	var req http.Request
 	req.Method = "GET"
 	req.ProtoMajor = 1
@@ -132,7 +133,7 @@ func get(url string, oauthHeaders map[string]string) (r *http.Response, err os.E
 		req.Header["Authorization"][0] += k + "=\"" + v + "\""
 	}
 
-	req.URL, err = http.ParseURL(url)
+	req.URL, err = url.Parse(url_)
 	if err != nil {
 		return nil, err
 	}

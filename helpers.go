@@ -2,13 +2,14 @@ package oauth
 
 import (
 	"bytes"
-	"http"
+
 	"io"
 	"strings"
+	"url"
 )
 
-func addQueryParams(url string, params map[string]string) string {
-	str := url
+func addQueryParams(url_ string, params map[string]string) string {
+	str := url_
 
 	first := true
 	for k, v := range params {
@@ -19,11 +20,11 @@ func addQueryParams(url string, params map[string]string) string {
 			str += "&"
 		}
 
-		rawv, err := http.URLUnescape(v)
+		rawv, err := url.QueryUnescape(v)
 		if err == nil {
 			v = rawv
 		}
-		str += k + "=" + http.URLEscape(v)
+		str += k + "=" + url.QueryEscape(v)
 	}
 
 	return str
@@ -74,13 +75,13 @@ func parseParams(body string) map[string]string {
 	}
 	var pairs []string
 	if strings.LastIndex(body, "&") > 0 {
-		pairs = strings.Split(body, "&", -1)
+		pairs = strings.Split(body, "&")
 	} else {
 		pairs = []string{body}
 	}
 	for _, pair := range pairs {
 		if strings.LastIndex(pair, "=") > 0 {
-			kv := strings.Split(pair, "=", 2)
+			kv := strings.SplitN(pair, "=", 2)
 			p[kv[0]] = kv[1]
 		} else {
 			p[pair] = ""
@@ -92,7 +93,7 @@ func parseParams(body string) map[string]string {
 
 func unescapeParams(p map[string]string) {
 	for k, v := range p {
-		uv, _ := http.URLUnescape(v)
+		uv, _ := url.QueryUnescape(v)
 		p[k] = uv
 	}
 }

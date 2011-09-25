@@ -224,7 +224,7 @@ func baseString(method, url string, params map[string]string) string {
 		i++
 	}
 
-	sort.SortStrings(keys)
+	sort.Strings(keys)
 	first := true
 	for _, k := range keys {
 		if first {
