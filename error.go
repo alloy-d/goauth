@@ -7,7 +7,7 @@ type callbackError struct {
 	Callback string
 }
 
-func (e *callbackError) String() string {
+func (e *callbackError) Error() string {
 	return fmt.Sprintf("Callback not confirmed: %s", e.Callback)
 }
 
@@ -17,7 +17,7 @@ type danceError struct {
 	What  string
 }
 
-func (e *danceError) String() string {
+func (e *danceError) Error() string {
 	return fmt.Sprintf("Error in %s: %s", e.Where, e.What)
 }
 
@@ -27,6 +27,6 @@ type implementationError struct {
 	What  string
 }
 
-func (e *implementationError) String() string {
+func (e *implementationError) Error() string {
 	return fmt.Sprintf("%s unimplmented for %s", e.What, e.Where)
 }

@@ -4,13 +4,13 @@ import (
 	"bufio"
 	//"bytes"
 	"crypto/tls"
-	"net"
 	"fmt"
-	"http"
 	"io"
-	"os"
+	"net"
+	"net/http"
+
+	"net/url"
 	"strings"
-	"url"
 )
 
 type badStringError struct {
@@ -18,7 +18,7 @@ type badStringError struct {
 	str  string
 }
 
-func (e *badStringError) String() string {
+func (e *badStringError) Error() string {
 	return fmt.Sprintf("%s %q", e.what, e.str)
 }
 
@@ -31,13 +31,13 @@ type nopCloser struct {
 	io.Reader
 }
 
-func (nopCloser) Close() os.Error { return nil }
+func (nopCloser) Close() error { return nil }
 
 func hasPort(s string) bool {
 	return strings.LastIndex(s, ":") > strings.LastIndex(s, "]")
 }
 
-func send(req *http.Request) (resp *http.Response, err os.Error) {
+func send(req *http.Request) (resp *http.Response, err error) {
 	//dump, _ := http.DumpRequest(req, true)
 	//fmt.Fprintf(os.Stderr, "%s", dump)
 	//fmt.Fprintf(os.Stderr, "\n--- body:\n%s\n---", bodyString(req.Body))
@@ -83,7 +83,7 @@ func send(req *http.Request) (resp *http.Response, err os.Error) {
 	return
 }
 
-func post(url_ string, oauthHeaders map[string]string) (r *http.Response, err os.Error) {
+func post(url_ string, oauthHeaders map[string]string) (r *http.Response, err error) {
 	var req http.Request
 	req.Method = "POST"
 	req.ProtoMajor = 1
@@ -112,7 +112,7 @@ func post(url_ string, oauthHeaders map[string]string) (r *http.Response, err os
 	return send(&req)
 }
 
-func get(url_ string, oauthHeaders map[string]string) (r *http.Response, err os.Error) {
+func get(url_ string, oauthHeaders map[string]string) (r *http.Response, err error) {
 	var req http.Request
 	req.Method = "GET"
 	req.ProtoMajor = 1

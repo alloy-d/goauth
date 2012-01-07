@@ -4,8 +4,8 @@ import (
 	"bytes"
 
 	"io"
+	"net/url"
 	"strings"
-	"url"
 )
 
 func addQueryParams(url_ string, params map[string]string) string {
