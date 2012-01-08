@@ -7,10 +7,9 @@ import (
 	"crypto/hmac"
 	"encoding/base64"
 	"fmt"
-	"http"
 	"io"
-	"os"
-	"rand"
+	"math/rand"
+	"net/http"
 	"sort"
 	"strconv"
 	"time"
@@ -82,7 +81,7 @@ func (o *OAuth) UserName() string {
 }
 
 // Initiates the OAuth dance.
-func (o *OAuth) GetRequestToken() (err os.Error) {
+func (o *OAuth) GetRequestToken() (err error) {
 	oParams := o.params()
 	oParams["oauth_callback"] = o.Callback
 
@@ -97,7 +96,7 @@ func (o *OAuth) GetRequestToken() (err os.Error) {
 }
 
 // Makes an HTTP request, handling all the repetitive OAuth overhead.
-func (o *OAuth) makeRequest(method, url string, oParams map[string]string, params map[string]string) (resp *http.Response, err os.Error) {
+func (o *OAuth) makeRequest(method, url string, oParams map[string]string, params map[string]string) (resp *http.Response, err error) {
 	escapeParams(oParams)
 	escapeParams(params)
 
@@ -125,7 +124,7 @@ func (o *OAuth) makeRequest(method, url string, oParams map[string]string, param
 
 // The URL the user needs to visit to grant authorization.
 // Call after GetRequestToken().
-func (o *OAuth) AuthorizationURL() (string, os.Error) {
+func (o *OAuth) AuthorizationURL() (string, error) {
 	if o.requestToken == "" || o.requestSecret == "" {
 		return "", &danceError{
 			What:  "attempt to get authorization without credentials",
@@ -140,7 +139,7 @@ func (o *OAuth) AuthorizationURL() (string, os.Error) {
 // Performs the final step in the dance: getting the access token.
 //
 // Call this after GetRequestToken() and getting user verification.
-func (o *OAuth) GetAccessToken(verifier string) (err os.Error) {
+func (o *OAuth) GetAccessToken(verifier string) (err error) {
 	if o.requestToken == "" || o.requestSecret == "" {
 		return &danceError{
 			What:  "Temporary credentials not avaiable",
@@ -161,7 +160,7 @@ func (o *OAuth) GetAccessToken(verifier string) (err os.Error) {
 
 // Parses a response for the OAuth dance and sets the appropriate fields
 // in o for the request type.
-func (o *OAuth) parseResponse(status int, body io.Reader, requestType int) os.Error {
+func (o *OAuth) parseResponse(status int, body io.Reader, requestType int) error {
 	//dump, _ := http.DumpResponse(resp, true)
 	//fmt.Fprintf(os.Stderr, "%s\n", dump)
 	r := bodyString(body)
@@ -186,7 +185,8 @@ func (o *OAuth) parseResponse(status int, body io.Reader, requestType int) os.Er
 	case TokenReq:
 		o.accessToken = params["oauth_token"]
 		o.accessSecret = params["oauth_token_secret"]
-		o.userId, _ = strconv.Atoui(params["user_id"])
+		n, _ := strconv.ParseUint(params["user_id"], 10, 0)
+		o.userId = uint(n)
 		o.userName = params["screen_name"]
 	default:
 		return &implementationError{
@@ -241,7 +241,7 @@ func baseString(method, url string, params map[string]string) string {
 
 // For oauth_nonce (if that wasn't obvious).
 func nonce() string {
-	return strconv.Itoa64(rand.Int63())
+	return strconv.FormatInt(rand.Int63(), 10)
 }
 
 // This could probably seem like less of a hack...
@@ -255,13 +255,13 @@ func (o *OAuth) signingKey() string {
 	return key
 }
 
-func (o *OAuth) sign(request string) (string, os.Error) {
+func (o *OAuth) sign(request string) (string, error) {
 	key := o.signingKey()
 	switch o.SignatureMethod {
 	case HMAC_SHA1:
 		hash := hmac.NewSHA1([]byte(key))
 		hash.Write([]byte(request))
-		signature := hash.Sum()
+		signature := hash.Sum(nil)
 		digest := make([]byte, base64.StdEncoding.EncodedLen(len(signature)))
 		base64.StdEncoding.Encode(digest, signature)
 		return string(digest), nil
@@ -273,10 +273,10 @@ func (o *OAuth) sign(request string) (string, os.Error) {
 }
 
 func timestamp() string {
-	return strconv.Itoa64(time.Seconds())
+	return strconv.FormatInt(time.Now().Unix(), 10)
 }
 
-func (o *OAuth) Post(url string, params map[string]string) (r *http.Response, err os.Error) {
+func (o *OAuth) Post(url string, params map[string]string) (r *http.Response, err error) {
 	if !o.Authorized() {
 		return nil, &danceError{
 			What:  "Not authorized",
@@ -289,7 +289,7 @@ func (o *OAuth) Post(url string, params map[string]string) (r *http.Response, er
 	return
 }
 
-func (o *OAuth) Get(url string, params map[string]string) (r *http.Response, err os.Error) {
+func (o *OAuth) Get(url string, params map[string]string) (r *http.Response, err error) {
 	if !o.Authorized() {
 		return nil, &danceError{
 			What:  "Not authorized",
