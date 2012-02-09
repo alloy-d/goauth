@@ -5,6 +5,7 @@ package oauth
 
 import (
 	"crypto/hmac"
+	"crypto/sha1"
 	"encoding/base64"
 	"fmt"
 	"io"
@@ -259,7 +260,7 @@ func (o *OAuth) sign(request string) (string, error) {
 	key := o.signingKey()
 	switch o.SignatureMethod {
 	case HMAC_SHA1:
-		hash := hmac.NewSHA1([]byte(key))
+		hash := hmac.New(sha1.New, []byte(key))
 		hash.Write([]byte(request))
 		signature := hash.Sum(nil)
 		digest := make([]byte, base64.StdEncoding.EncodedLen(len(signature)))
