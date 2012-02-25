@@ -15,7 +15,8 @@ func (o *OAuth) Save(fileName string) (err error) {
 	}
 	defer file.Close()
 
-	fmt.Fprintf(file, "oauth_token=%s&oauth_token_secret=%s", o.accessToken, o.accessSecret)
+	fmt.Fprintf(file, "oauth_token=%s&oauth_token_secret=%s",
+		o.AccessToken, o.AccessSecret)
 	if o.userId != 0 {
 		fmt.Fprintf(file, "&user_id=%d", o.userId)
 	}
