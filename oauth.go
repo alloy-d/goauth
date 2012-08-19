@@ -48,8 +48,8 @@ type OAuth struct {
 	// NOT initialized.
 	RequestTokenParams map[string]string
 
-	requestToken  string
-	requestSecret string
+	RequestToken  string
+	RequestSecret string
 
 	userName string
 	userId   uint
@@ -127,14 +127,14 @@ func (o *OAuth) makeRequest(method, url string, oParams map[string]string, param
 // The URL the user needs to visit to grant authorization.
 // Call after GetRequestToken().
 func (o *OAuth) AuthorizationURL() (string, error) {
-	if o.requestToken == "" || o.requestSecret == "" {
+	if o.RequestToken == "" || o.RequestSecret == "" {
 		return "", &danceError{
 			What:  "attempt to get authorization without credentials",
 			Where: "OAuth\xb7AuthorizationURL()",
 		}
 	}
 
-	url := o.OwnerAuthURL + "?oauth_token=" + o.requestToken
+	url := o.OwnerAuthURL + "?oauth_token=" + o.RequestToken
 	return url, nil
 }
 
@@ -142,7 +142,7 @@ func (o *OAuth) AuthorizationURL() (string, error) {
 //
 // Call this after GetRequestToken() and getting user verification.
 func (o *OAuth) GetAccessToken(verifier string) (err error) {
-	if o.requestToken == "" || o.requestSecret == "" {
+	if o.RequestToken == "" || o.RequestSecret == "" {
 		return &danceError{
 			What:  "Temporary credentials not avaiable",
 			Where: "OAuth\xb7GetAccessToken()",
@@ -150,7 +150,7 @@ func (o *OAuth) GetAccessToken(verifier string) (err error) {
 	}
 
 	params := o.params()
-	params["oauth_token"] = o.requestToken
+	params["oauth_token"] = o.RequestToken
 	params["oauth_verifier"] = verifier
 	resp, err := o.makeRequest("POST", o.AccessTokenURL, params, None)
 	if err != nil {
@@ -178,8 +178,8 @@ func (o *OAuth) parseResponse(status int, body io.Reader, requestType int) error
 
 	switch requestType {
 	case TempCredentialReq:
-		o.requestToken = params["oauth_token"]
-		o.requestSecret = params["oauth_token_secret"]
+		o.RequestToken = params["oauth_token"]
+		o.RequestSecret = params["oauth_token_secret"]
 		if confirmed, ok := params["oauth_callback_confirmed"]; !ok ||
 			confirmed != "true" {
 			return &callbackError{o.Callback}
@@ -251,8 +251,8 @@ func (o *OAuth) signingKey() string {
 	key := o.ConsumerSecret + "&"
 	if o.AccessSecret != "" {
 		key += o.AccessSecret
-	} else if o.requestSecret != "" {
-		key += o.requestSecret
+	} else if o.RequestSecret != "" {
+		key += o.RequestSecret
 	}
 	return key
 }
